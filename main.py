@@ -260,7 +260,6 @@ def main(recur=False):
                             temp_dir = os.getcwd() + "\\" + region_list[i]
 
                         for j in range(len(temp_dir_list) - 1, -1, -1):
-                            print(j)
                             if current_region in temp_dir_list[j][1]:
                                 if not os.path.exists(temp_dir):
                                     print("Creating new directory:", temp_dir)
