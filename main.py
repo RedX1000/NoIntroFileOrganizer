@@ -3,20 +3,38 @@ import time
 import shutil
 import platform
 from typing import Any, List
+from pathlib import Path
+
 
 class NoIntroFileOrganizer:
     def __init__(self):
-        print(platform.system())
-        pass
+        self.current_path = Path().cwd()
+        self.current_path_list = []
+        print(self.current_path)
+        self.navigation()
 
-    def go_to_path_return_directory(self, path=""):
+    def go_to_path_return_directory(self, path):
         path_active = False
         try:
-            if path == "":
+            if type(path) is str:
                 print()
                 path = input("What is the path of your file?: ")
                 path_active = True
-            os.chdir(path)
+
+            if path == ".":  # If looking at current directory and wants the list
+                return self.current_path_list
+            elif ".." in path:  # If going up one or more directories
+                if path == "..":
+                    path_nav = 0
+                else:
+                    path_nav = path.count("../") - 1
+                    if (path[len(path) - 1] + path[len(path) - 2]) == "..":
+                        path_nav += 1
+                self.current_path = self.current_path.parents[path_nav]
+                self.set_current_path_list()
+                return self.current_path_list
+
+            os.chdir(str(path.cwd()))
             os_walk_list = [x for x in os.listdir(os.getcwd())]
             dir_list = []
             for i in range(len(os_walk_list)):
@@ -26,7 +44,7 @@ class NoIntroFileOrganizer:
             print("")
             print(e, "\nPath not found. Try again.")
             if path_active:
-                dir_list = self.go_to_path_return_directory()
+                dir_list = self.go_to_path_return_directory("")
                 return dir_list
             else:
                 return
@@ -47,11 +65,21 @@ class NoIntroFileOrganizer:
         else:
             return os.getcwd() + "\\" + regex_string
 
+    def set_current_path_list(self):
+        self.current_path_list = list(self.current_path.iterdir())
+        temp = []
+        for i in range(len(self.current_path_list)):
+            temp.append([i + 1, self.current_path_list[i]])
+        temp.append([len(self.current_path_list) + 1, "../"])
+        self.current_path_list = temp
 
-    def print_path_dir_list(self, path_dir_list):
-        print("Items in", os.getcwd())
-        for i in range(len(path_dir_list)):
-            print(path_dir_list[i])
+
+    def print_current_path_list(self):
+        if not self.current_path_list:
+            self.set_current_path_list()
+        print("Items in", self.current_path.cwd())
+        for i in range(len(self.current_path_list)):
+            print(self.current_path_list[i])
 
 
     def yes_no_question(self, question):
@@ -65,9 +93,11 @@ class NoIntroFileOrganizer:
         else:
             return False
 
-    def main(self, recur=False):
-        path_dir_list = self.go_to_path_return_directory()
-        self.print_path_dir_list(path_dir_list)
+
+    def navigation(self):
+        print()
+        self.current_path_list = self.go_to_path_return_directory(Path(""))
+        self.print_current_path_list()
 
         location = 0
         print("Is there a directory you'd like to access?")
@@ -80,31 +110,35 @@ class NoIntroFileOrganizer:
                                      "Where do you want to go?: "))
 
                 if location == 0:
-                    path_dir_list = self.go_to_path_return_directory()
-                    self.print_path_dir_list(path_dir_list)
+                    self.current_path_list = self.go_to_path_return_directory("")
+                    self.print_current_path_list()
                 elif location == -1:
                     continue
-                elif len(path_dir_list) > location > 0:
-                    for i in range(len(path_dir_list)):
-                        if path_dir_list[i][0] == location:
-                            if os.path.isdir(os.getcwd() + "\\" + path_dir_list[i][1]):
-                                print("\nFound directory:", path_dir_list[i][1])
-                                path_dir_list = self.go_to_path_return_directory(path=os.getcwd() + "\\" + path_dir_list[i][1])
+                elif len(self.current_path_list) + 1 > location > 0:
+                    for i in range(len(self.current_path_list)):
+                        if self.current_path_list[i][0] == location:
+                            if os.path.isdir(os.getcwd() + "\\" + self.current_path_list[i][1]):
+                                print("\nFound directory:", self.current_path_list[i][1])
+                                self.current_path_list = self.go_to_path_return_directory(path=Path(self.current_path.cwd(), self.current_path_list[i][1]))
                                 break
                             else:
                                 print("\nNot a directory. Try again.")
                                 break
-                    self.print_path_dir_list(path_dir_list)
+                    self.print_current_path_list()
                 else:
                     print("Number out of range. Try again")
             except ValueError:
                 print("Enter an integer. Try again.")
             except TypeError:
                 print("Not a directory. Try again.")
+        self.manipulation()
+        return
 
+
+    def manipulation(self, recur=False):
         choice = 0
-        for i in range(len(path_dir_list)):
-            path_dir_list[i]: List[Any] = [path_dir_list[i][0], path_dir_list[i][1]]
+        for i in range(len(self.current_path_list)):
+            self.current_path_list[i]: List[Any] = [self.current_path_list[i][0], self.current_path_list[i][1]]
 
         while choice != -1:
             try:
@@ -113,12 +147,12 @@ class NoIntroFileOrganizer:
                 for i in range(len(os.path.basename(os.getcwd()))):
                     line_str += "="
                 print("=====================" + line_str)
-                for i in range(len(path_dir_list)):
-                    file_list_str = ">  Index: " + str(path_dir_list[i][0])
-                    if os.path.isfile(path_dir_list[i][1]):
-                        file_list_str += "   File: " + path_dir_list[i][1]
+                for i in range(len(self.current_path_list)):
+                    file_list_str = ">  Index: " + str(self.current_path_list[i][0])
+                    if os.path.isfile(self.current_path_list[i][1]):
+                        file_list_str += "   File: " + self.current_path_list[i][1]
                     else:
-                        file_list_str += "   Directory: " + path_dir_list[i][1]
+                        file_list_str += "   Directory: " + self.current_path_list[i][1]
                     print(file_list_str)
                 print("> ", "Current Directory:", os.path.basename(os.getcwd()))
                 choice = int(input("Choose an action.\n"
@@ -132,25 +166,25 @@ class NoIntroFileOrganizer:
                                    "What do you want to?: "))
                 if choice == 0 or choice == -1:
                     if choice == 0:
-                        self.main(True)
+                        self.manipulation(True)
                         return
                     if not recur:
                         print("Closing script.")
                     return
-                elif len(path_dir_list) >= choice > 0 or choice == -2 or choice == -3:
+                elif len(self.current_path_list) >= choice > 0 or choice == -2 or choice == -3:
                     if choice != -3:
                         temp_str_list: List[Any] = []
                         temp_dir = ""
 
-                        for i in range(len(path_dir_list)):
-                            if path_dir_list[i][0] == choice:
-                                if os.path.isfile(os.getcwd() + "\\" + path_dir_list[i][1]):
-                                    print("\nFound file: ", path_dir_list[i][1])
-                                    temp_str_list = os.path.splitext(path_dir_list[i][1])[0].split(" ")
+                        for i in range(len(self.current_path_list)):
+                            if self.current_path_list[i][0] == choice:
+                                if os.path.isfile(os.getcwd() + "\\" + self.current_path_list[i][1]):
+                                    print("\nFound file: ", self.current_path_list[i][1])
+                                    temp_str_list = os.path.splitext(self.current_path_list[i][1])[0].split(" ")
                                     break
                                 else:
-                                    print("\nFound directory: ", path_dir_list[i][1])
-                                    temp_dir = path_dir_list[i][1]
+                                    print("\nFound directory: ", self.current_path_list[i][1])
+                                    temp_dir = self.current_path_list[i][1]
                                     break
 
                         if temp_dir == "" and choice != -2:
@@ -217,12 +251,12 @@ class NoIntroFileOrganizer:
                             time.sleep(1)
 
                         file_list = []
-                        for i in range(len(path_dir_list)):
-                            if not os.path.isfile(os.getcwd() + "\\" + path_dir_list[i][1]):
+                        for i in range(len(self.current_path_list)):
+                            if not os.path.isfile(os.getcwd() + "\\" + self.current_path_list[i][1]):
                                 pass
                             else:
-                                if regex_string in path_dir_list[i][1]:
-                                    file_list.append(path_dir_list[i][1])
+                                if regex_string in self.current_path_list[i][1]:
+                                    file_list.append(self.current_path_list[i][1])
 
                         if len(file_list) == 0:
                             print("No files with", regex_string, "exist in", os.getcwd(), ".")
@@ -238,9 +272,9 @@ class NoIntroFileOrganizer:
                         for i in range(len(file_list)):
                             shutil.move(os.getcwd() + "\\" + file_list[i], filename + "\\" + file_list[i])
 
-                        path_dir_list = self.go_to_path_return_directory(os.getcwd())
-                        for i in range(len(path_dir_list)):
-                            path_dir_list[i]: List[Any] = [path_dir_list[i][0], path_dir_list[i][1]]
+                        self.current_path_list = self.go_to_path_return_directory(os.getcwd())
+                        for i in range(len(self.current_path_list)):
+                            self.current_path_list[i]: List[Any] = [self.current_path_list[i][0], self.current_path_list[i][1]]
                     else:
                         with open(__file__ + "\\..\\regionlist.txt") as f:
                             region_list = [line.strip() for line in f]
@@ -256,7 +290,7 @@ class NoIntroFileOrganizer:
 
                         print("\nMoving files...")
                         time.sleep(1)
-                        temp_dir_list: List[Any] = path_dir_list.copy()
+                        temp_dir_list: List[Any] = self.current_path_list.copy()
                         for i in range(len(region_list)):
                             current_region = region_list[i]
                             if answer:
@@ -275,9 +309,9 @@ class NoIntroFileOrganizer:
 
                             print("Things left in list", temp_dir_list)
 
-                        path_dir_list = self.go_to_path_return_directory(os.getcwd())
-                        for i in range(len(path_dir_list)):
-                            path_dir_list[i]: List[Any] = [path_dir_list[i][0], path_dir_list[i][1]]
+                        self.current_path_list = self.go_to_path_return_directory(os.getcwd())
+                        for i in range(len(self.current_path_list)):
+                            self.current_path_list[i]: List[Any] = [self.current_path_list[i][0], self.current_path_list[i][1]]
 
                         print("Region and BIOS move complete!")
 
